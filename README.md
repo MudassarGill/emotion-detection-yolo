@@ -33,9 +33,10 @@ Webcam Frame → YOLO Face Detection → Crop Each Face → DeepFace Emotion Cla
 | Feature | Description |
 |---------|-------------|
 | 🎯 **Face Detection** | YOLOv8n-face with automatic Haar Cascade fallback |
+| 🖼️ **Image Analysis** | Upload static photos (JPG, PNG) for detailed emotion scanning |
 | 🎭 **7 Emotions** | Happy, Sad, Angry, Fear, Surprise, Disgust, Neutral |
 | 👥 **Multi-Face Support** | Detect and classify emotions for multiple faces simultaneously |
-| ⚡ **Real-Time FPS** | Live frames-per-second counter with rolling average |
+| ⚡ **Real-Time FPS** | Live frames-per-second counter for webcam mode |
 | 📊 **Analytics Dashboard** | Emotion distribution bars, per-face results, confidence scores |
 | 🎨 **Premium UI** | Gradient design, glassmorphism cards, animated status indicators |
 | 🛡️ **Error Handling** | Graceful fallbacks for model loading, camera access, and small faces |
@@ -62,7 +63,7 @@ Webcam Frame → YOLO Face Detection → Crop Each Face → DeepFace Emotion Cla
 ### Prerequisites
 
 - **Python 3.8+** installed ([Download Python](https://www.python.org/downloads/))
-- **Webcam** (built-in laptop camera or USB webcam)
+- **Webcam** (for live mode)
 - **Internet connection** (for first-run model download only)
 - ~2GB free disk space (for model weights)
 
@@ -106,19 +107,20 @@ The app will automatically open in your browser at **http://localhost:8501**.
 ## 🎮 How to Use
 
 1. **Launch** → Run `streamlit run app.py` in your terminal
-2. **Start Camera** → Click the **▶ Start** button in the sidebar
-3. **View Detections** → Faces are highlighted with:
+2. **Select Mode** → Choose between **🎥 Live Webcam** or **📂 Image Upload** in the sidebar
+3. **Analyze**:
+   - **Webcam**: Click **▶ Start** to begin real-time detection
+   - **Image**: Drop a photo (JPG/PNG) into the uploader to scan it
+4. **View Detections** → Faces are highlighted with:
    - Color-coded bounding boxes with corner accents
    - Emotion label + emoji above each face
    - Confidence percentage
-   - Confidence bar below each face
-4. **Check Analytics** → The dashboard shows:
-   - ⚡ **FPS** — Current frames per second
+5. **Check Analytics** → The dashboard shows:
+   - ⚡ **FPS** (Webcam) or 📸 **Mode** (Image)
    - 👤 **Faces Detected** — Total face count
-   - 🎭 **Dominant Emotion** — Highest-confidence emotion
-   - 📊 **Emotion Distribution** — Bar chart of all 7 emotion scores
-   - 👥 **Per-Face Results** — Individual emotion for each detected face
-5. **Stop Camera** → Click the **⏹ Stop** button
+   - 🎭 **Dominant Emotion** — Overall impression
+   - 📊 **Emotion Distribution** — Detailed score breakdown
+   - 👥 **Per-Face Results** — Individual results for every person
 
 ---
 

@@ -308,208 +308,353 @@ with detail_cols[1]:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Camera Loop
+# Helper Functions
 # ═══════════════════════════════════════════════════════════════════
-if st.session_state.camera_running and detector is not None and recognizer is not None:
-    cap = cv2.VideoCapture(CAMERA_INDEX)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+def process_image(image, detector, recognizer):
+    """
+    Common logic to detect faces and recognize emotions in an image.
+    Returns (annotated_image, results_list)
+    """
+    # ── Detect faces ────────────────────────────────────
+    face_detections = detector.detect(image)
 
-    if not cap.isOpened():
-        st.error(" Cannot open webcam. Please check your camera connection.")
-        st.session_state.camera_running = False
+    # ── Recognize emotions ──────────────────────────────
+    results = []
+    for det in face_detections:
+        x1, y1, x2, y2 = det["bbox"]
+        # Clamp to frame bounds
+        h, w = image.shape[:2]
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(w, x2), min(h, y2)
+
+        face_crop = image[y1:y2, x1:x2]
+        emotion_data = recognizer.recognize(face_crop)
+
+        results.append({
+            "bbox": (x1, y1, x2, y2),
+            "confidence": det["confidence"],
+            "emotion": emotion_data,
+        })
+
+    # ── Draw on image ───────────────────────────────────
+    # Copy to avoid modifying the original
+    temp_img = image.copy()
+    annotated = draw_detections(temp_img, results)
+    annotated = draw_face_count(annotated, len(results))
+    
+    return annotated, results
+
+
+def update_analytics(results, fps=None):
+    """Update metrics and charts based on results."""
+    if fps is not None:
+        fps_metric.markdown(f"""
+        <div class="metric-card">
+            <div class="label">⚡ FPS</div>
+            <div class="value">{fps}</div>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        fps_counter = FPSCounter()
+        fps_metric.markdown(f"""
+        <div class="metric-card">
+            <div class="label">📸 Mode</div>
+            <div class="value">Image</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        while st.session_state.camera_running:
-            ret, frame = cap.read()
-            if not ret:
-                st.warning(" Failed to read frame from webcam.")
-                break
-
-            fps_counter.tick()
-
-            # ── Detect faces ────────────────────────────────────
-            face_detections = detector.detect(frame)
-
-            # ── Recognize emotions ──────────────────────────────
-            results = []
-            for det in face_detections:
-                x1, y1, x2, y2 = det["bbox"]
-                # Clamp to frame bounds
-                h, w = frame.shape[:2]
-                x1, y1 = max(0, x1), max(0, y1)
-                x2, y2 = min(w, x2), min(h, y2)
-
-                face_crop = frame[y1:y2, x1:x2]
-                emotion_data = recognizer.recognize(face_crop)
-
-                results.append({
-                    "bbox": (x1, y1, x2, y2),
-                    "confidence": det["confidence"],
-                    "emotion": emotion_data,
-                })
-
-            # ── Draw on frame ───────────────────────────────────
-            annotated = draw_detections(frame, results)
-            annotated = draw_fps(annotated, fps_counter.fps)
-            annotated = draw_face_count(annotated, len(results))
-
-            # ── Convert BGR → RGB for Streamlit ─────────────────
-            display_frame = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-
-            # ── Update video feed ───────────────────────────────
-            video_placeholder.image(display_frame, channels="RGB", use_container_width=True)
-
-            # ── Update analytics ────────────────────────────────
-            fps_metric.markdown(f"""
-            <div class="metric-card">
-                <div class="label">⚡ FPS</div>
-                <div class="value">{fps_counter.fps}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            face_count_metric.markdown(f"""
-            <div class="metric-card">
-                <div class="label">👤 Faces Detected</div>
-                <div class="value">{len(results)}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # Dominant emotion across all faces
-            if results and any(r["emotion"] for r in results):
-                emotions_found = [
-                    r["emotion"] for r in results if r["emotion"] is not None
-                ]
-                if emotions_found:
-                    # Find the highest-confidence detection
-                    best = max(emotions_found, key=lambda e: e["confidence"])
-                    best_emoji = EMOTION_EMOJIS.get(best["dominant_emotion"], "")
-                    best_color = EMOTION_HEX_COLORS.get(best["dominant_emotion"], "#fff")
-
-                    dominant_emotion_metric.markdown(f"""
-                    <div class="metric-card">
-                        <div class="label">🎭 Dominant Emotion</div>
-                        <div class="value" style="color:{best_color};">
-                            {best_emoji} {best["dominant_emotion"].capitalize()}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    confidence_metric.markdown(f"""
-                    <div class="metric-card">
-                        <div class="label"> Confidence</div>
-                        <div class="value" style="color:{best_color};">{best["confidence"]:.1f}%</div>
-                        <div class="conf-bar-bg">
-                            <div class="conf-bar-fill" style="width:{best['confidence']}%; background:{best_color};"></div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    # ── Detailed emotion breakdown ──────────────
-                    # Bar chart data
-                    all_emotions = best.get("all_emotions", {})
-                    if all_emotions:
-                        chart_html = "<div>"
-                        for emo, score in sorted(all_emotions.items(), key=lambda x: -x[1]):
-                            emoji = EMOTION_EMOJIS.get(emo, "")
-                            color = EMOTION_HEX_COLORS.get(emo, "#888")
-                            chart_html += f"""
-                            <div style="margin: 6px 0;">
-                                <div style="display:flex; justify-content:space-between; color:#ccc; font-size:0.85rem;">
-                                    <span>{emoji} {emo.capitalize()}</span>
-                                    <span>{score:.1f}%</span>
-                                </div>
-                                <div class="conf-bar-bg">
-                                    <div class="conf-bar-fill" style="width:{score}%; background:{color};"></div>
-                                </div>
-                            </div>
-                            """
-                        chart_html += "</div>"
-                        emotion_chart_placeholder.markdown(
-                            f'<div class="metric-card"><div class="label"> Emotion Distribution</div>{chart_html}</div>',
-                            unsafe_allow_html=True,
-                        )
-
-                    # Per-face list
-                    faces_html = ""
-                    for i, r in enumerate(results):
-                        if r["emotion"]:
-                            e = r["emotion"]
-                            e_emoji = EMOTION_EMOJIS.get(e["dominant_emotion"], "")
-                            e_color = EMOTION_HEX_COLORS.get(e["dominant_emotion"], "#888")
-                            faces_html += f"""
-                            <div style="padding:0.5rem 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                <span style="color:#888;">Face {i+1}:</span>
-                                <span style="color:{e_color}; font-weight:600;">
-                                    {e_emoji} {e["dominant_emotion"].capitalize()}
-                                </span>
-                                <span style="color:#666;"> ({e["confidence"]:.1f}%)</span>
-                            </div>
-                            """
-                    if faces_html:
-                        emotion_list_placeholder.markdown(
-                            f'<div class="metric-card"><div class="label">👥 Per-Face Results</div>{faces_html}</div>',
-                            unsafe_allow_html=True,
-                        )
-                else:
-                    dominant_emotion_metric.markdown("""
-                    <div class="metric-card">
-                        <div class="label"> Dominant Emotion</div>
-                        <div class="value">—</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                dominant_emotion_metric.markdown("""
-                <div class="metric-card">
-                    <div class="label"> Dominant Emotion</div>
-                    <div class="value">—</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                confidence_metric.markdown("""
-                <div class="metric-card">
-                    <div class="label"> Confidence</div>
-                    <div class="value">—</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-        cap.release()
-
-elif not st.session_state.camera_running:
-    # Show placeholder when camera is off
-    video_placeholder.markdown("""
-    <div style="
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 400px;
-        background: linear-gradient(135deg, #0a0a1a, #1a1a2e, #16213e);
-        border-radius: 16px;
-        border: 2px dashed rgba(102, 126, 234, 0.3);
-    ">
-        <div style="font-size: 4rem; margin-bottom: 1rem;">📹</div>
-        <h3 style="
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 0;
-        ">Camera Ready</h3>
-        <p style="color: #666; margin-top: 0.5rem;">
-            Click <strong>▶ Start</strong> in the sidebar to begin
-        </p>
+    face_count_metric.markdown(f"""
+    <div class="metric-card">
+        <div class="label">👤 Faces Detected</div>
+        <div class="value">{len(results)}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Empty analytics
-    for col, (icon, label) in zip(analytics_cols, [
-        ("⚡", "FPS"), ("👤", "Faces"), ("🎭", "Emotion"), ("📊", "Confidence"),
-    ]):
-        with col:
-            st.markdown(f"""
+    # Dominant emotion across all faces
+    if results and any(r["emotion"] for r in results):
+        emotions_found = [
+            r["emotion"] for r in results if r["emotion"] is not None
+        ]
+        if emotions_found:
+            # Find the highest-confidence detection
+            best = max(emotions_found, key=lambda e: e["confidence"])
+            best_emoji = EMOTION_EMOJIS.get(best["dominant_emotion"], "")
+            best_color = EMOTION_HEX_COLORS.get(best["dominant_emotion"], "#fff")
+
+            dominant_emotion_metric.markdown(f"""
             <div class="metric-card">
-                <div class="label">{icon} {label}</div>
-                <div class="value">—</div>
+                <div class="label">🎭 Dominant Emotion</div>
+                <div class="value" style="color:{best_color};">
+                    {best_emoji} {best["dominant_emotion"].capitalize()}
+                </div>
             </div>
             """, unsafe_allow_html=True)
+
+            confidence_metric.markdown(f"""
+            <div class="metric-card">
+                <div class="label"> Confidence</div>
+                <div class="value" style="color:{best_color};">{best["confidence"]:.1f}%</div>
+                <div class="conf-bar-bg">
+                    <div class="conf-bar-fill" style="width:{best['confidence']}%; background:{best_color};"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # ── Detailed emotion breakdown ──────────────
+            all_emotions = best.get("all_emotions", {})
+            if all_emotions:
+                chart_html = "<div>"
+                for emo, score in sorted(all_emotions.items(), key=lambda x: -x[1]):
+                    emoji = EMOTION_EMOJIS.get(emo, "")
+                    color = EMOTION_HEX_COLORS.get(emo, "#888")
+                    chart_html += f"""
+                    <div style="margin: 6px 0;">
+                        <div style="display:flex; justify-content:space-between; color:#ccc; font-size:0.85rem;">
+                            <span>{emoji} {emo.capitalize()}</span>
+                            <span>{score:.1f}%</span>
+                        </div>
+                        <div class="conf-bar-bg">
+                            <div class="conf-bar-fill" style="width:{score}%; background:{color};"></div>
+                        </div>
+                    </div>
+                    """
+                chart_html += "</div>"
+                emotion_chart_placeholder.markdown(
+                    f'<div class="metric-card"><div class="label"> Emotion Distribution</div>{chart_html}</div>',
+                    unsafe_allow_html=True,
+                )
+
+            # Per-face list
+            faces_html = ""
+            for i, r in enumerate(results):
+                if r["emotion"]:
+                    e = r["emotion"]
+                    e_emoji = EMOTION_EMOJIS.get(e["dominant_emotion"], "")
+                    e_color = EMOTION_HEX_COLORS.get(e["dominant_emotion"], "#888")
+                    faces_html += f"""
+                    <div style="padding:0.5rem 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <span style="color:#888;">Face {i+1}:</span>
+                        <span style="color:{e_color}; font-weight:600;">
+                            {e_emoji} {e["dominant_emotion"].capitalize()}
+                        </span>
+                        <span style="color:#666;"> ({e["confidence"]:.1f}%)</span>
+                    </div>
+                    """
+            if faces_html:
+                emotion_list_placeholder.markdown(
+                    f'<div class="metric-card"><div class="label">👥 Per-Face Results</div>{faces_html}</div>',
+                    unsafe_allow_html=True,
+                )
+    else:
+        dominant_emotion_metric.markdown("""
+        <div class="metric-card">
+            <div class="label"> Dominant Emotion</div>
+            <div class="value">—</div>
+        </div>
+        """, unsafe_allow_html=True)
+        confidence_metric.markdown("""
+        <div class="metric-card">
+            <div class="label"> Confidence</div>
+            <div class="value">—</div>
+        </div>
+        """, unsafe_allow_html=True)
+        emotion_chart_placeholder.empty()
+        emotion_list_placeholder.empty()
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Sidebar
+# ═══════════════════════════════════════════════════════════════════
+with st.sidebar:
+    # Logo / Brand
+    st.markdown("""
+    <div style="text-align:center; padding: 1rem 0;">
+        <div style="font-size: 3rem;">🧠</div>
+        <h2 style="
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0.3rem 0;
+        ">EmotionSense AI</h2>
+        <p style="color: #888; font-size: 0.8rem;">Visual Intelligence Platform</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Mode Selector ───────────────────────────────────────────
+    st.markdown('<div class="sidebar-title">🎮 Input Mode</div>', unsafe_allow_html=True)
+    app_mode = st.radio("Choose source:", ["🎥 Live Webcam", "📂 Image Upload"], label_visibility="collapsed")
+
+    st.divider()
+
+    if app_mode == "🎥 Live Webcam":
+        # ── Camera Controls ─────────────────────────────────────────
+        st.markdown('<div class="sidebar-title">📹 Camera Controls</div>', unsafe_allow_html=True)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            start_btn = st.button("▶ Start", use_container_width=True, type="primary")
+        with col2:
+            stop_btn = st.button("⏹ Stop", use_container_width=True)
+
+        if start_btn:
+            st.session_state.camera_running = True
+        if stop_btn:
+            st.session_state.camera_running = False
+
+        # Status indicator
+        if st.session_state.camera_running:
+            st.markdown(
+                '<p><span class="status-dot" style="background:#00ff64;"></span> Camera Active</p>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<p><span class="status-dot" style="background:#ff4444;"></span> Camera Stopped</p>',
+                unsafe_allow_html=True,
+            )
+    else:
+        st.session_state.camera_running = False
+        st.markdown('<div class="sidebar-title">🖼️ Upload Photo</div>', unsafe_allow_html=True)
+        uploaded_file = st.file_uploader("Drop an image here", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+
+    st.divider()
+
+    # ── Model Info ──────────────────────────────────────────────
+    st.markdown('<div class="sidebar-title">🤖 Model Info</div>', unsafe_allow_html=True)
+
+    try:
+        detector = load_face_detector()
+        st.success(f"Face: {detector.backend_name}")
+    except Exception as e:
+        detector = None
+        st.error(f"Face detector error: {e}")
+
+    try:
+        recognizer = load_emotion_recognizer()
+        st.success("Emotion: DeepFace")
+    except Exception as e:
+        recognizer = None
+        st.error(f"Emotion model error: {e}")
+
+    st.divider()
+
+    # ── About ───────────────────────────────────────────────────
+    st.markdown("""
+    <div style="color: #666; font-size: 0.75rem; text-align: center; padding-top: 0.5rem;">
+        Built with ❤️ using Streamlit<br>
+        YOLO + DeepFace<br>
+        © 2026 EmotionSense AI
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Main Content Area
+# ═══════════════════════════════════════════════════════════════════
+
+# Header
+st.markdown(f"""
+<div class="main-header">
+    <h1>🧠 EmotionSense AI</h1>
+    <p>{'Real-time webcam feed' if app_mode == "🎥 Live Webcam" else 'Static image analysis'}</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Analytics placeholders
+analytics_cols = st.columns(4)
+with analytics_cols[0]:
+    fps_metric = st.empty()
+with analytics_cols[1]:
+    face_count_metric = st.empty()
+with analytics_cols[2]:
+    dominant_emotion_metric = st.empty()
+with analytics_cols[3]:
+    confidence_metric = st.empty()
+
+# Video feed
+media_placeholder = st.empty()
+
+# Detailed analytics section
+st.markdown("---")
+detail_cols = st.columns([2, 1])
+
+with detail_cols[0]:
+    emotion_chart_placeholder = st.empty()
+with detail_cols[1]:
+    emotion_list_placeholder = st.empty()
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Core Logic Execution
+# ═══════════════════════════════════════════════════════════════════
+
+if detector is not None and recognizer is not None:
+    if app_mode == "🎥 Live Webcam":
+        if st.session_state.camera_running:
+            cap = cv2.VideoCapture(CAMERA_INDEX)
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+
+            if not cap.isOpened():
+                st.error("❌ Cannot open webcam. Please check your camera connection.")
+                st.session_state.camera_running = False
+            else:
+                fps_counter = FPSCounter()
+                while st.session_state.camera_running:
+                    ret, frame = cap.read()
+                    if not ret:
+                        st.warning("⚠️ Failed to read frame from webcam.")
+                        break
+
+                    fps_counter.tick()
+                    
+                    # ── Process ─────────────────────────────────────
+                    annotated, results = process_image(frame, detector, recognizer)
+                    annotated = draw_fps(annotated, fps_counter.fps)
+
+                    # ── Display ─────────────────────────────────────
+                    display_frame = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+                    media_placeholder.image(display_frame, channels="RGB", use_container_width=True)
+
+                    # ── Analytics ───────────────────────────────────
+                    update_analytics(results, fps=fps_counter.fps)
+
+                cap.release()
+        else:
+            # Camera off placeholder
+            media_placeholder.markdown("""
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 400px; background: linear-gradient(135deg, #0a0a1a, #1a1a2e); border-radius: 16px; border: 2px dashed rgba(102, 126, 234, 0.3);">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">📹</div>
+                <h3 style="background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">Camera Ready</h3>
+                <p style="color: #666; margin-top: 0.5rem;">Click <strong>▶ Start</strong> in the sidebar</p>
+            </div>
+            """, unsafe_allow_html=True)
+            update_analytics([])
+
+    else:  # Image Upload Mode
+        if uploaded_file is not None:
+            # Read uploaded image
+            file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+            image = cv2.imdecode(file_bytes, 1)
+
+            # ── Process ─────────────────────────────────────────
+            with st.spinner("Analyzing image..."):
+                annotated, results = process_image(image, detector, recognizer)
+
+            # ── Display ─────────────────────────────────────────
+            display_img = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+            media_placeholder.image(display_img, channels="RGB", use_container_width=True)
+
+            # ── Analytics ───────────────────────────────────────
+            update_analytics(results)
+        else:
+            # File missing placeholder
+            media_placeholder.markdown("""
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 400px; background: linear-gradient(135deg, #0a0a1a, #1a1a2e); border-radius: 16px; border: 2px dashed rgba(102, 126, 234, 0.3);">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">🖼️</div>
+                <h3 style="background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">Image Mode</h3>
+                <p style="color: #666; margin-top: 0.5rem;">Upload a photo in the sidebar to analyze</p>
+            </div>
+            """, unsafe_allow_html=True)
+            update_analytics([])
