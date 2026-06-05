@@ -26,10 +26,10 @@ class FaceDetector:
             # Try yolov8n-face (community face-detection model)
             self.model = YOLO("yolov8n-face.pt")
             self.backend = "yolo"
-            print("✅ Face detector: YOLOv8n-face loaded successfully")
+            print("Face detector: YOLOv8n-face loaded successfully")
             return
         except Exception as e:
-            print(f"⚠️  YOLO face model failed: {e}")
+            print(f"  YOLO face model failed: {e}")
 
         # ── Attempt 2: Standard YOLO (detect persons/faces) ────
         try:
@@ -37,10 +37,10 @@ class FaceDetector:
 
             self.model = YOLO("yolov8n.pt")
             self.backend = "yolo_general"
-            print("✅ Face detector: YOLOv8n (general) loaded as fallback")
+            print(" Face detector: YOLOv8n (general) loaded as fallback")
             return
         except Exception as e:
-            print(f"⚠️  YOLO general model failed: {e}")
+            print(f"  YOLO general model failed: {e}")
 
         # ── Attempt 3: Haar Cascade ─────────────────────────────
         try:
@@ -49,9 +49,9 @@ class FaceDetector:
             if self.model.empty():
                 raise RuntimeError("Cascade classifier is empty")
             self.backend = "haar"
-            print("✅ Face detector: Haar Cascade loaded as fallback")
+            print(" Face detector: Haar Cascade loaded as fallback")
         except Exception as e:
-            raise RuntimeError(f"❌ No face detector available: {e}")
+            raise RuntimeError(f" No face detector available: {e}")
 
     def detect(self, frame: np.ndarray) -> list:
         """

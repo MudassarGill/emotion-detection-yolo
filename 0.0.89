@@ -1,0 +1,1 @@
+Could not fetch URL https://pypi.org/simple/deepface/: There was a problem confirming the ssl certificate: [SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad record mac (_ssl.c:2578) - skipping

@@ -278,7 +278,7 @@ with st.sidebar:
 # Header
 st.markdown("""
 <div class="main-header">
-    <h1>🧠 EmotionSense AI</h1>
+    <h1> EmotionSense AI</h1>
     <p>Real-time facial emotion recognition powered by YOLO & DeepFace</p>
 </div>
 """, unsafe_allow_html=True)
@@ -316,7 +316,7 @@ if st.session_state.camera_running and detector is not None and recognizer is no
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
 
     if not cap.isOpened():
-        st.error("❌ Cannot open webcam. Please check your camera connection.")
+        st.error(" Cannot open webcam. Please check your camera connection.")
         st.session_state.camera_running = False
     else:
         fps_counter = FPSCounter()
@@ -324,7 +324,7 @@ if st.session_state.camera_running and detector is not None and recognizer is no
         while st.session_state.camera_running:
             ret, frame = cap.read()
             if not ret:
-                st.warning("⚠️ Failed to read frame from webcam.")
+                st.warning(" Failed to read frame from webcam.")
                 break
 
             fps_counter.tick()
@@ -398,7 +398,7 @@ if st.session_state.camera_running and detector is not None and recognizer is no
 
                     confidence_metric.markdown(f"""
                     <div class="metric-card">
-                        <div class="label">📊 Confidence</div>
+                        <div class="label"> Confidence</div>
                         <div class="value" style="color:{best_color};">{best["confidence"]:.1f}%</div>
                         <div class="conf-bar-bg">
                             <div class="conf-bar-fill" style="width:{best['confidence']}%; background:{best_color};"></div>
@@ -427,7 +427,7 @@ if st.session_state.camera_running and detector is not None and recognizer is no
                             """
                         chart_html += "</div>"
                         emotion_chart_placeholder.markdown(
-                            f'<div class="metric-card"><div class="label">📊 Emotion Distribution</div>{chart_html}</div>',
+                            f'<div class="metric-card"><div class="label"> Emotion Distribution</div>{chart_html}</div>',
                             unsafe_allow_html=True,
                         )
 
@@ -455,21 +455,21 @@ if st.session_state.camera_running and detector is not None and recognizer is no
                 else:
                     dominant_emotion_metric.markdown("""
                     <div class="metric-card">
-                        <div class="label">🎭 Dominant Emotion</div>
+                        <div class="label"> Dominant Emotion</div>
                         <div class="value">—</div>
                     </div>
                     """, unsafe_allow_html=True)
             else:
                 dominant_emotion_metric.markdown("""
                 <div class="metric-card">
-                    <div class="label">🎭 Dominant Emotion</div>
+                    <div class="label"> Dominant Emotion</div>
                     <div class="value">—</div>
                 </div>
                 """, unsafe_allow_html=True)
 
                 confidence_metric.markdown("""
                 <div class="metric-card">
-                    <div class="label">📊 Confidence</div>
+                    <div class="label"> Confidence</div>
                     <div class="value">—</div>
                 </div>
                 """, unsafe_allow_html=True)
