@@ -208,9 +208,9 @@ with st.sidebar:
 
     col1, col2 = st.columns(2)
     with col1:
-        start_btn = st.button("▶ Start", use_container_width=True, type="primary")
+        start_btn = st.button("▶ Start", use_container_width=True, type="primary", key="start_camera_btn")
     with col2:
-        stop_btn = st.button("⏹ Stop", use_container_width=True)
+        stop_btn = st.button("⏹ Stop", use_container_width=True, key="stop_camera_btn")
 
     if start_btn:
         st.session_state.camera_running = True

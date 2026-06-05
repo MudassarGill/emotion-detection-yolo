@@ -32,7 +32,7 @@ Webcam Frame → YOLO Face Detection → Crop Each Face → DeepFace Emotion Cla
 
 | Feature | Description |
 |---------|-------------|
-| 🎯 **Face Detection** | YOLOv8n-face with automatic Haar Cascade fallback |
+| 🎯 **Face-Only Detection** | Strictly optimized for human faces using YOLOv8n-face |
 | 🖼️ **Image Analysis** | Upload static photos (JPG, PNG) for detailed emotion scanning |
 | 🎭 **7 Emotions** | Happy, Sad, Angry, Fear, Surprise, Disgust, Neutral |
 | 👥 **Multi-Face Support** | Detect and classify emotions for multiple faces simultaneously |

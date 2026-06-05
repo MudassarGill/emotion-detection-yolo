@@ -62,8 +62,6 @@ class FaceDetector:
         """
         if self.backend == "yolo":
             return self._detect_yolo_face(frame)
-        elif self.backend == "yolo_general":
-            return self._detect_yolo_general(frame)
         elif self.backend == "haar":
             return self._detect_haar(frame)
         return []
@@ -84,38 +82,11 @@ class FaceDetector:
                 detections.append({"bbox": (x1, y1, x2, y2), "confidence": conf})
         return detections
 
-    def _detect_yolo_general(self, frame: np.ndarray) -> list:
-        """Detect persons using general YOLO model then use upper body as face region."""
-        results = self.model(
-            frame,
-            conf=YOLO_CONFIDENCE_THRESHOLD,
-            iou=YOLO_IOU_THRESHOLD,
-            classes=[0],  # person class only
-            verbose=False,
-        )
-        detections = []
-        for result in results:
-            for box in result.boxes:
-                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-                conf = float(box.conf[0])
-                # Estimate face as the upper portion of the person bbox
-                w = x2 - x1
-                h = y2 - y1
-                face_h = int(h * 0.35)
-                face_x1 = x1 + int(w * 0.15)
-                face_x2 = x2 - int(w * 0.15)
-                face_y2 = y1 + face_h
-                detections.append({
-                    "bbox": (face_x1, y1, face_x2, face_y2),
-                    "confidence": conf,
-                })
-        return detections
-
     def _detect_haar(self, frame: np.ndarray) -> list:
         """Detect faces using Haar Cascade."""
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = self.model.detectMultiScale(
-            gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+            gray, scaleFactor=1.2, minNeighbors=7, minSize=(50, 50)
         )
         detections = []
         for (x, y, w, h) in faces:
