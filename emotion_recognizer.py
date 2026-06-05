@@ -19,7 +19,7 @@ class EmotionRecognizer:
         try:
             from deepface import DeepFace
             self._deepface = DeepFace
-            print("✅ Emotion recognizer: DeepFace loaded successfully")
+            print(" Emotion recognizer: DeepFace loaded successfully")
         except ImportError:
             raise ImportError(
                 "DeepFace is required. Install it with: pip install deepface tf-keras"

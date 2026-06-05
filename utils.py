@@ -62,7 +62,7 @@ def draw_detections(frame: np.ndarray, detections: list) -> np.ndarray:
         else:
             emotion = "detecting..."
             conf = 0
-            emoji = "🔍"
+            emoji = ""
             color = (200, 200, 200)
 
         # ── Bounding box ────────────────────────────────────────

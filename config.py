@@ -4,7 +4,7 @@ EmotionSense AI — Configuration & Constants
 
 # ─── Page Config ────────────────────────────────────────────────
 APP_TITLE = "EmotionSense AI"
-APP_ICON = "🧠"
+APP_ICON = ""
 APP_LAYOUT = "wide"
 
 # ─── YOLO Face Detection ────────────────────────────────────────
