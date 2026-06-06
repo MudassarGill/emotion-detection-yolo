@@ -9,7 +9,7 @@ APP_LAYOUT = "wide"
 
 # ─── YOLO Face Detection ────────────────────────────────────────
 YOLO_MODEL_NAME = "yolov8n-face.pt"
-YOLO_CONFIDENCE_THRESHOLD = 0.45
+YOLO_CONFIDENCE_THRESHOLD = 0.50
 YOLO_IOU_THRESHOLD = 0.5
 
 # ─── Emotion Labels ─────────────────────────────────────────────

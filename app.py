@@ -183,128 +183,14 @@ def load_emotion_recognizer():
     return EmotionRecognizer()
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Sidebar
-# ═══════════════════════════════════════════════════════════════════
-with st.sidebar:
-    # Logo / Brand
-    st.markdown("""
-    <div style="text-align:center; padding: 1rem 0;">
-        <div style="font-size: 3rem;">🧠</div>
-        <h2 style="
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 0.3rem 0;
-        ">EmotionSense AI</h2>
-        <p style="color: #888; font-size: 0.8rem;">Real-Time Emotion Detection</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.divider()
-
-    # ── Camera Controls ─────────────────────────────────────────
-    st.markdown('<div class="sidebar-title">📹 Camera Controls</div>', unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
-    with col1:
-        start_btn = st.button("▶ Start", use_container_width=True, type="primary", key="start_camera_btn")
-    with col2:
-        stop_btn = st.button("⏹ Stop", use_container_width=True, key="stop_camera_btn")
-
-    if start_btn:
-        st.session_state.camera_running = True
-    if stop_btn:
-        st.session_state.camera_running = False
-
-    # Status indicator
-    if st.session_state.camera_running:
-        st.markdown(
-            '<p><span class="status-dot" style="background:#00ff64;"></span> Camera Active</p>',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            '<p><span class="status-dot" style="background:#ff4444;"></span> Camera Stopped</p>',
-            unsafe_allow_html=True,
-        )
-
-    st.divider()
-
-    # ── Model Info ──────────────────────────────────────────────
-    st.markdown('<div class="sidebar-title">🤖 Model Info</div>', unsafe_allow_html=True)
-
-    try:
-        detector = load_face_detector()
-        st.success(f"Face: {detector.backend_name}")
-    except Exception as e:
-        detector = None
-        st.error(f"Face detector error: {e}")
-
-    try:
-        recognizer = load_emotion_recognizer()
-        st.success("Emotion: DeepFace")
-    except Exception as e:
-        recognizer = None
-        st.error(f"Emotion model error: {e}")
-
-    st.divider()
-
-    # ── Detectable Emotions ─────────────────────────────────────
-    st.markdown('<div class="sidebar-title">🎭 Detectable Emotions</div>', unsafe_allow_html=True)
-
-    emotions_display = ""
-    for emo, emoji in EMOTION_EMOJIS.items():
-        color = EMOTION_HEX_COLORS.get(emo, "#fff")
-        emotions_display += f'<span class="emotion-badge" style="border-color:{color}; color:{color};">{emoji} {emo.capitalize()}</span>'
-    st.markdown(emotions_display, unsafe_allow_html=True)
-
-    st.divider()
-
-    # ── About ───────────────────────────────────────────────────
-    st.markdown("""
-    <div style="color: #666; font-size: 0.75rem; text-align: center; padding-top: 0.5rem;">
-        Built with ❤️ using Streamlit<br>
-        YOLO + DeepFace<br>
-        © 2026 EmotionSense AI
-    </div>
-    """, unsafe_allow_html=True)
+# Sidebar and main content are defined once below in the Core Logic section.
 
 
 # ═══════════════════════════════════════════════════════════════════
 # Main Content Area
 # ═══════════════════════════════════════════════════════════════════
 
-# Header
-st.markdown("""
-<div class="main-header">
-    <h1> EmotionSense AI</h1>
-    <p>Real-time facial emotion recognition powered by YOLO & DeepFace</p>
-</div>
-""", unsafe_allow_html=True)
-
-# Analytics placeholders
-analytics_cols = st.columns(4)
-with analytics_cols[0]:
-    fps_metric = st.empty()
-with analytics_cols[1]:
-    face_count_metric = st.empty()
-with analytics_cols[2]:
-    dominant_emotion_metric = st.empty()
-with analytics_cols[3]:
-    confidence_metric = st.empty()
-
-# Video feed
-video_placeholder = st.empty()
-
-# Detailed analytics section
-st.markdown("---")
-detail_cols = st.columns([2, 1])
-
-with detail_cols[0]:
-    emotion_chart_placeholder = st.empty()
-with detail_cols[1]:
-    emotion_list_placeholder = st.empty()
+# Main placeholders are defined once below.
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -403,7 +289,9 @@ def update_analytics(results, fps=None):
             all_emotions = best.get("all_emotions", {})
             if all_emotions:
                 chart_html = "<div>"
-                for emo, score in sorted(all_emotions.items(), key=lambda x: -x[1]):
+                # Filter out 0% emotions for cleaner display
+                filtered_emotions = {k: v for k, v in all_emotions.items() if v > 0}
+                for emo, score in sorted(filtered_emotions.items(), key=lambda x: -x[1]):
                     emoji = EMOTION_EMOJIS.get(emo, "")
                     color = EMOTION_HEX_COLORS.get(emo, "#888")
                     chart_html += f"""
@@ -592,9 +480,13 @@ with detail_cols[1]:
 if detector is not None and recognizer is not None:
     if app_mode == "🎥 Live Webcam":
         if st.session_state.camera_running:
-            cap = cv2.VideoCapture(CAMERA_INDEX)
+            # Use CAP_DSHOW on Windows for faster initialization
+            cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+            # Optimize settings for lower latency
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            cap.set(cv2.CAP_PROP_FPS, 30)
 
             if not cap.isOpened():
                 st.error("❌ Cannot open webcam. Please check your camera connection.")
