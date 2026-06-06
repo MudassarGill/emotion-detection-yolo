@@ -471,10 +471,14 @@ with detail_cols[1]:
 if detector is not None and recognizer is not None:
     if app_mode == "🎥 Live Webcam":
         if st.session_state.camera_running:
-            # Use CAP_DSHOW on Windows for faster initialization
+            # Use CAP_DSHOW on Windows for faster initialization, with fallback
             cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+            if not cap.isOpened():
+                cap = cv2.VideoCapture(CAMERA_INDEX)
+            
+            if cap.isOpened():
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
             # Optimize settings for lower latency
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             cap.set(cv2.CAP_PROP_FPS, 30)
@@ -504,12 +508,19 @@ if detector is not None and recognizer is not None:
                     
                     # If we skipped emotions, preserve the last known emotions for display consistency
                     if skip_emotions and last_results:
-                        # Match current faces with previous results based on bbox proximity (simple heuristic)
-                        for i, res in enumerate(results):
-                            if i < len(last_results):
-                                res["emotion"] = last_results[i]["emotion"]
+                        # Match current faces with previous results based on simple bbox overlap
+                        for res in results:
+                            rx1, ry1, rx2, ry2 = res["bbox"]
+                            for last_res in last_results:
+                                lx1, ly1, lx2, ly2 = last_res["bbox"]
+                                # Simple overlap check
+                                if abs(rx1 - lx1) < 50 and abs(ry1 - ly1) < 50:
+                                    res["emotion"] = last_res["emotion"]
+                                    break
                     else:
-                        last_results = results
+                        # Only update last_results if we actually have new emotion data
+                        if results and any(r["emotion"] is not None for r in results):
+                            last_results = results
 
                     annotated = draw_fps(annotated, fps_counter.fps)
 

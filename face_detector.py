@@ -60,14 +60,18 @@ class FaceDetector:
         Returns:
             List of dicts: [{"bbox": (x1, y1, x2, y2), "confidence": float}, ...]
         """
-        if self.backend == "yolo":
-            return self._detect_yolo_face(frame)
-        elif self.backend == "haar":
-            return self._detect_haar(frame)
-        return []
+        detections = []
+        if self.backend in ["yolo", "yolo_general"]:
+            detections = self._detect_yolo_face(frame)
+            
+        # If YOLO fails to find anything, try Haar as a dynamic fallback
+        if not detections:
+            detections = self._detect_haar(frame)
+            
+        return detections
 
     def _detect_yolo_face(self, frame: np.ndarray) -> list:
-        """Detect faces using YOLO face model."""
+        """Detect faces using YOLO model."""
         results = self.model(
             frame,
             conf=YOLO_CONFIDENCE_THRESHOLD,
@@ -77,9 +81,19 @@ class FaceDetector:
         detections = []
         for result in results:
             for box in result.boxes:
+                # If using general YOLO, only take class 0 (person)
+                # If using specialized face YOLO, all boxes are faces
+                cls = int(box.cls[0].item()) if hasattr(box, "cls") else 0
+                if self.backend == "yolo_general" and cls != 0:
+                    continue
+
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
                 conf = float(box.conf[0])
                 detections.append({"bbox": (x1, y1, x2, y2), "confidence": conf})
+        
+        if not detections and self.backend != "haar":
+             print(f"DEBUG: YOLO ({self.backend}) found 0 faces at conf {YOLO_CONFIDENCE_THRESHOLD}")
+             
         return detections
 
     def _detect_haar(self, frame: np.ndarray) -> list:
