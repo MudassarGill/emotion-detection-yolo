@@ -300,7 +300,9 @@ def update_analytics(results, fps=None):
                             st.write(f"{EMOTION_EMOJIS.get(emo, '')} {emo.capitalize()}")
                         with col_score:
                             st.write(f"{score:.1f}%")
-                        st.progress(score / 100.0)
+                        # Cast to float and clip to [0.0, 1.0] to avoid type errors
+                        prog_val = float(np.clip(score / 100.0, 0.0, 1.0))
+                        st.progress(prog_val)
 
             # Per-face list
             faces_html = ""
