@@ -31,18 +31,7 @@ class FaceDetector:
         except Exception as e:
             print(f"  YOLO face model failed: {e}")
 
-        # ── Attempt 2: Standard YOLO (detect persons/faces) ────
-        try:
-            from ultralytics import YOLO
-
-            self.model = YOLO("yolov8n.pt")
-            self.backend = "yolo_general"
-            print(" Face detector: YOLOv8n (general) loaded as fallback")
-            return
-        except Exception as e:
-            print(f"  YOLO general model failed: {e}")
-
-        # ── Attempt 3: Haar Cascade ─────────────────────────────
+        # ── Attempt 2: Haar Cascade ─────────────────────────────
         try:
             cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
             self.model = cv2.CascadeClassifier(cascade_path)
@@ -71,7 +60,7 @@ class FaceDetector:
         return detections
 
     def _detect_yolo_face(self, frame: np.ndarray) -> list:
-        """Detect faces using YOLO model."""
+        """Detect faces using specialized YOLO face model."""
         results = self.model(
             frame,
             conf=YOLO_CONFIDENCE_THRESHOLD,
@@ -81,12 +70,6 @@ class FaceDetector:
         detections = []
         for result in results:
             for box in result.boxes:
-                # If using general YOLO, only take class 0 (person)
-                # If using specialized face YOLO, all boxes are faces
-                cls = int(box.cls[0].item()) if hasattr(box, "cls") else 0
-                if self.backend == "yolo_general" and cls != 0:
-                    continue
-
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
                 conf = float(box.conf[0])
                 detections.append({"bbox": (x1, y1, x2, y2), "confidence": conf})
@@ -115,7 +98,6 @@ class FaceDetector:
         """Return a human-readable name for the active backend."""
         names = {
             "yolo": "YOLOv8n-Face",
-            "yolo_general": "YOLOv8n (General)",
             "haar": "Haar Cascade",
         }
         return names.get(self.backend, "Unknown")
