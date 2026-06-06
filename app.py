@@ -381,9 +381,9 @@ with st.sidebar:
 
         col1, col2 = st.columns(2)
         with col1:
-            start_btn = st.button("▶ Start", use_container_width=True, type="primary")
+            start_btn = st.button("▶ Start", width="stretch", type="primary")
         with col2:
-            stop_btn = st.button("⏹ Stop", use_container_width=True)
+            stop_btn = st.button("⏹ Stop", width="stretch")
 
         if start_btn:
             st.session_state.camera_running = True
@@ -507,7 +507,7 @@ if detector is not None and recognizer is not None:
 
                     # ── Display ─────────────────────────────────────
                     display_frame = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-                    media_placeholder.image(display_frame, channels="RGB", use_container_width=True)
+                    media_placeholder.image(display_frame, channels="RGB", width="stretch")
 
                     # ── Analytics ───────────────────────────────────
                     update_analytics(results, fps=fps_counter.fps)
@@ -536,7 +536,7 @@ if detector is not None and recognizer is not None:
 
             # ── Display ─────────────────────────────────────────
             display_img = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-            media_placeholder.image(display_img, channels="RGB", use_container_width=True)
+            media_placeholder.image(display_img, channels="RGB", width="stretch")
 
             # ── Analytics ───────────────────────────────────────
             update_analytics(results)
