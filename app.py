@@ -196,7 +196,7 @@ def load_emotion_recognizer():
 # ═══════════════════════════════════════════════════════════════════
 # Helper Functions
 # ═══════════════════════════════════════════════════════════════════
-def process_image(image, detector, recognizer):
+def process_image(image, detector, recognizer, skip_emotions=False):
     """
     Common logic to detect faces and recognize emotions in an image.
     Returns (annotated_image, results_list)
@@ -213,8 +213,11 @@ def process_image(image, detector, recognizer):
         x1, y1 = max(0, x1), max(0, y1)
         x2, y2 = min(w, x2), min(h, y2)
 
-        face_crop = image[y1:y2, x1:x2]
-        emotion_data = recognizer.recognize(face_crop)
+        if not skip_emotions:
+            face_crop = image[y1:y2, x1:x2]
+            emotion_data = recognizer.recognize(face_crop)
+        else:
+            emotion_data = None
 
         results.append({
             "bbox": (x1, y1, x2, y2),
@@ -288,28 +291,16 @@ def update_analytics(results, fps=None):
             # ── Detailed emotion breakdown ──────────────
             all_emotions = best.get("all_emotions", {})
             if all_emotions:
-                chart_html = "<div>"
-                # Filter out 0% emotions for cleaner display
-                filtered_emotions = {k: v for k, v in all_emotions.items() if v > 0}
-                for emo, score in sorted(filtered_emotions.items(), key=lambda x: -x[1]):
-                    emoji = EMOTION_EMOJIS.get(emo, "")
-                    color = EMOTION_HEX_COLORS.get(emo, "#888")
-                    chart_html += f"""
-                    <div style="margin: 6px 0;">
-                        <div style="display:flex; justify-content:space-between; color:#ccc; font-size:0.85rem;">
-                            <span>{emoji} {emo.capitalize()}</span>
-                            <span>{score:.1f}%</span>
-                        </div>
-                        <div class="conf-bar-bg">
-                            <div class="conf-bar-fill" style="width:{score}%; background:{color};"></div>
-                        </div>
-                    </div>
-                    """
-                chart_html += "</div>"
-                emotion_chart_placeholder.markdown(
-                    f'<div class="metric-card"><div class="label"> Emotion Distribution</div>{chart_html}</div>',
-                    unsafe_allow_html=True,
-                )
+                # Use an expander for detailed distribution to keep UI clean
+                with emotion_chart_placeholder.expander("📊 Detailed Emotion Distribution", expanded=True):
+                    filtered_emotions = {k: v for k, v in all_emotions.items() if v > 0}
+                    for emo, score in sorted(filtered_emotions.items(), key=lambda x: -x[1]):
+                        col_emo, col_score = st.columns([3, 1])
+                        with col_emo:
+                            st.write(f"{EMOTION_EMOJIS.get(emo, '')} {emo.capitalize()}")
+                        with col_score:
+                            st.write(f"{score:.1f}%")
+                        st.progress(score / 100.0)
 
             # Per-face list
             faces_html = ""
@@ -328,10 +319,8 @@ def update_analytics(results, fps=None):
                     </div>
                     """
             if faces_html:
-                emotion_list_placeholder.markdown(
-                    f'<div class="metric-card"><div class="label">👥 Per-Face Results</div>{faces_html}</div>',
-                    unsafe_allow_html=True,
-                )
+                with emotion_list_placeholder.expander("👥 Per-Face Results", expanded=False):
+                    st.markdown(faces_html, unsafe_allow_html=True)
     else:
         dominant_emotion_metric.markdown("""
         <div class="metric-card">
@@ -493,6 +482,9 @@ if detector is not None and recognizer is not None:
                 st.session_state.camera_running = False
             else:
                 fps_counter = FPSCounter()
+                frame_count = 0
+                last_results = []
+                
                 while st.session_state.camera_running:
                     ret, frame = cap.read()
                     if not ret:
@@ -500,9 +492,23 @@ if detector is not None and recognizer is not None:
                         break
 
                     fps_counter.tick()
+                    frame_count += 1
                     
                     # ── Process ─────────────────────────────────────
-                    annotated, results = process_image(frame, detector, recognizer)
+                    # Only recognize emotions every 5 frames to stay real-time
+                    skip_emotions = (frame_count % 5 != 0)
+                    
+                    annotated, results = process_image(frame, detector, recognizer, skip_emotions=skip_emotions)
+                    
+                    # If we skipped emotions, preserve the last known emotions for display consistency
+                    if skip_emotions and last_results:
+                        # Match current faces with previous results based on bbox proximity (simple heuristic)
+                        for i, res in enumerate(results):
+                            if i < len(last_results):
+                                res["emotion"] = last_results[i]["emotion"]
+                    else:
+                        last_results = results
+
                     annotated = draw_fps(annotated, fps_counter.fps)
 
                     # ── Display ─────────────────────────────────────
