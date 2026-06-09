@@ -77,3 +77,5 @@ class EmotionRecognizer:
 
         except Exception:
             return None
+        except Exception
+            return
