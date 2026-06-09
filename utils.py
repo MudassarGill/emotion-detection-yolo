@@ -120,7 +120,7 @@ def draw_detections(frame: np.ndarray, detections: list) -> np.ndarray:
         if conf > 0:
             bar_width = x2 - x1
             bar_height = 4
-            bar_y = y2 + 5
+            bar_y = y2 + 6
             filled = int(bar_width * (conf / 100))
 
             cv2.rectangle(
