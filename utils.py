@@ -60,7 +60,7 @@ def draw_detections(frame: np.ndarray, detections: list) -> np.ndarray:
             emoji = EMOTION_EMOJIS.get(emotion, "")
             color = EMOTION_COLORS.get(emotion, (200, 200, 200))
         else:
-            emotion = "detecting..."
+            emotion = "detecting"
             conf = 0
             emoji = ""
             color = (200, 200, 200)
@@ -120,7 +120,7 @@ def draw_detections(frame: np.ndarray, detections: list) -> np.ndarray:
         if conf > 0:
             bar_width = x2 - x1
             bar_height = 4
-            bar_y = y2 + 6
+            bar_y = y2 + 5
             filled = int(bar_width * (conf / 100))
 
             cv2.rectangle(

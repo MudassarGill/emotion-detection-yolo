@@ -226,6 +226,14 @@ You can customize settings in `config.py`:
 
 ---
 
+## 👤 Author
+
+**Mudassar Hussain**
+- 🔗 **LinkedIn**: [m-mudassar-885](https://www.linkedin.com/in/m-mudassar-885)
+- 📧 **Email**: [mudassarhussain6533@gmail.com](mailto:mudassarhussain6533@gmail.com)
+
+---
+
 ## 📜 License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
