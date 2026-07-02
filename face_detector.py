@@ -8,7 +8,6 @@ import cv2
 import numpy as np
 from config import YOLO_CONFIDENCE_THRESHOLD, YOLO_IOU_THRESHOLD
 
-
 class FaceDetector:
     """Detects faces in a frame using YOLO or Haar Cascade fallback."""
 

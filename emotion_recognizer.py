@@ -49,7 +49,7 @@ class EmotionRecognizer:
 
         try:
             # Resize very small faces up for better accuracy
-            if h < 48 or w < 48:
+            if h < 45 or w < 45:
                 face_crop = cv2.resize(face_crop, (48, 48), interpolation=cv2.INTER_CUBIC)
 
             results = self._deepface.analyze(
@@ -77,5 +77,3 @@ class EmotionRecognizer:
 
         except Exception:
             return None
-        except Exception
-            return
